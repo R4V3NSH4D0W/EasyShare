@@ -21,12 +21,19 @@ io.on("connection", (socket) => {
 
   socket.on("requestUniqueId", (data) => {
     const uniqueID = uuidv4();
-    fileDataMap[uniqueID] = data.fileData;
+    const fileName = data.fileName;
+    console.log(fileName);
+    fileDataMap[uniqueID] = {
+      id: uniqueID,
+      fileData: data.fileData,
+      fileName: data.fileName,
+    };
     socket.emit("uniqueIdGenerated", { uniqueID, fileData: data.fileData });
   });
 
   socket.on("requestForFile", (uniqueId) => {
     const fileData = fileDataMap[uniqueId];
+    console.log(fileData);
     if (fileData) {
       socket.emit("fileReceived", fileData);
     }

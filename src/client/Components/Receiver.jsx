@@ -7,7 +7,6 @@ import { FaRegFile } from "react-icons/fa";
 const Receiver = () => {
   const { uniqueID } = useParams();
   const [receivedFiles, setReceivedFiles] = useState([]);
-
   const socket = io.connect("ws://localhost:3001");
 
   useEffect(() => {
@@ -21,6 +20,7 @@ const Receiver = () => {
 
   useEffect(() => {
     const handleFileReceived = (data) => {
+      console.log(data.id);
       const isFileAlreadyReceived = receivedFiles.some(
         (file) => file.id === data.id
       );
@@ -68,10 +68,14 @@ const Receiver = () => {
         <div key={index} className="m-4 flex items-center gap-2">
           <FaRegFile />
           <div className="truncate w-[10rem] flex flex-col">
-            <span className="text-xs">File ID: {file.id}</span>
-            <span className="text-xs">Size: {formatFileSize(file.length)}</span>
+            <span className="text-xs"> {file.fileName}</span>
+            <span className="text-xs">
+              Size: {formatFileSize(file.fileData.length)}
+            </span>
           </div>
-          <button onClick={() => downloadFile(file, `file_${file.id}`)}>
+          <button
+            onClick={() => downloadFile(file.fileData, `file_${file.fileName}`)}
+          >
             Download
           </button>
         </div>

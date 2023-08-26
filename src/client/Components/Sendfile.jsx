@@ -1,11 +1,9 @@
 import React, { useRef, useState, useEffect } from "react";
 import io from "socket.io-client";
-import { Link } from "react-router-dom";
 import "./style.css";
 import { FaFingerprint } from "react-icons/fa";
 import { BsPlusCircleFill } from "react-icons/bs";
 import { FaRegFile } from "react-icons/fa";
-import { RxCross2 } from "react-icons/rx";
 
 const Sendfile = () => {
   const fileInputRef = useRef(null);
@@ -26,8 +24,9 @@ const Sendfile = () => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const fileData = event.target.result;
-        console.log(fileData);
-        socket.emit("requestUniqueId", { fileData });
+        const fileName = file.name;
+
+        socket.emit("requestUniqueId", { fileData, fileName });
         // Emit "file" event to send the file data
       };
       reader.readAsDataURL(file);
@@ -35,7 +34,7 @@ const Sendfile = () => {
   };
 
   useEffect(() => {
-    socket.on("uniqueIdGenerated", ({ uniqueID, fileData }) => {
+    socket.on("uniqueIdGenerated", ({ uniqueID }) => {
       setSharedUniqueId(uniqueID);
       setSharedUrl(`${window.location.origin}/receiver/${uniqueID}`);
     });
