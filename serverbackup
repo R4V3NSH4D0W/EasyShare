@@ -1,0 +1,45 @@
+import express from "express";
+import http from "http";
+import { Server as SocketIOServer } from "socket.io";
+import path from "path";
+
+const app = express();
+const port = 5000;
+const server = http.createServer(app);
+
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: "*",
+  },
+});
+//-------------------------File Sharing Logic--------------------------//
+
+const user = {};
+const socketToRoom = {};
+io.on("connection", (socket) => {
+  socket.on("createRoom", (roomID) => {
+    socket.join(roomID);
+  });
+
+  socket.on("joinRoom", (roomID) => {
+    socket.join(roomID);
+    io.to(roomID).emit("receiverJoined");
+  });
+
+  socket.on("sendFile", (data) => {
+    io.to(data.roomID).emit("receiveFile", data.file);
+  });
+});
+
+io.on("connection", (socket) => {
+  console.log("Socket connected");
+  // ... other socket handlers
+
+  socket.on("disconnect", () => {
+    console.log("Socket disconnected");
+  });
+});
+
+server.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});

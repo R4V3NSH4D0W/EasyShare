@@ -1,4 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
+import io from "socket.io-client";
+import { Link } from "react-router-dom";
 import "./style.css";
 import { FaFingerprint } from "react-icons/fa";
 import { BsPlusCircleFill } from "react-icons/bs";
@@ -8,6 +10,9 @@ import { RxCross2 } from "react-icons/rx";
 const Sendfile = () => {
   const fileInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [sharedUniqueId, setSharedUniqueId] = useState("");
+  const [sharedUrl, setSharedUrl] = useState("");
+  const socket = io.connect("ws://localhost:3001");
 
   const handleFingerprintClick = () => {
     fileInputRef.current.click();
@@ -16,7 +21,25 @@ const Sendfile = () => {
   const handleFileChange = (event) => {
     const newFiles = Array.from(event.target.files);
     setSelectedFiles([...selectedFiles, ...newFiles]);
+
+    newFiles.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const fileData = event.target.result;
+        console.log(fileData);
+        socket.emit("requestUniqueId", { fileData });
+        // Emit "file" event to send the file data
+      };
+      reader.readAsDataURL(file);
+    });
   };
+
+  useEffect(() => {
+    socket.on("uniqueIdGenerated", ({ uniqueID, fileData }) => {
+      setSharedUniqueId(uniqueID);
+      setSharedUrl(`${window.location.origin}/receiver/${uniqueID}`);
+    });
+  }, []);
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) {
@@ -27,14 +50,11 @@ const Sendfile = () => {
       return (bytes / 1048576).toFixed(2) + " MB";
     }
   };
-  const handleRemoveFile = (indexToRemove) => {
-    setSelectedFiles((prevFiles) =>
-      prevFiles.filter((_, index) => index !== indexToRemove)
-    );
-  };
+
   const getTotalSize = () => {
     return selectedFiles.reduce((totalSize, file) => totalSize + file.size, 0);
   };
+
   return (
     <>
       {!selectedFiles.length ? (
@@ -84,10 +104,10 @@ const Sendfile = () => {
                   <span className="text-xs">{file.name}</span>
                   <span className="text-xs">{formatFileSize(file.size)}</span>
                 </div>
-                <RxCross2
+                {/* <RxCross2
                   onClick={() => handleRemoveFile(index)}
                   className=" hover:scale-125"
-                />
+                /> */}
               </div>
             ))}
           </div>
@@ -99,6 +119,15 @@ const Sendfile = () => {
               </div>
             </div>
             <hr className="m-4 border-gray-300" />
+            <div className="m-4">
+              <p>Shared Unique ID: {sharedUniqueId}</p>
+              {sharedUrl && (
+                <div>
+                  <p>Shared URL:</p>
+                  <input type="text" value={sharedUrl} readOnly />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
