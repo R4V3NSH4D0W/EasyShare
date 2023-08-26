@@ -3,8 +3,6 @@ import { useParams } from "react-router-dom";
 import io from "socket.io-client";
 import "./style.css";
 import { FaRegFile } from "react-icons/fa";
-import axios from "axios";
-import { data } from "autoprefixer";
 
 const Receiver = () => {
   const { uniqueID } = useParams();
@@ -14,45 +12,31 @@ const Receiver = () => {
 
   useEffect(() => {
     socket.emit("requestForFile", uniqueID);
-  }, []);
+
+    // Clean up the event listener when the component unmounts
+    return () => {
+      socket.off("fileReceived");
+    };
+  }, [uniqueID]);
 
   useEffect(() => {
-    const fetchFileData = async (id) => {
-      try {
-        const response = await axios.get(`http://localhost:3001/files/${id}`);
-        console.log("Response:", response);
-        const data = response.data;
-        console.log("Parsed Data:", data);
-        if (data.success) {
-          return data.fileData;
-        } else {
-          console.error("File not found.");
-          return null;
-        }
-      } catch (error) {
-        console.error("Error fetching file data:", error);
-        return null;
+    const handleFileReceived = (data) => {
+      const isFileAlreadyReceived = receivedFiles.some(
+        (file) => file.id === data.id
+      );
+
+      if (!isFileAlreadyReceived) {
+        setReceivedFiles((prev) => [...prev, data]);
       }
     };
 
-    // socket.on("fileReceive", async (data) => {
-    //   const { uniqueID, fileData } = data;
-    //   console.log("Received file data for unique ID:", uniqueID);
-    //   console.log("File data:", fileData);
-    //   console.log(fileData);
-    //   if (fileData) {
-    //     setReceivedFiles((prevFiles) => [
-    //       ...prevFiles,
-    //       { id: uniqueID, fileData },
-    //     ]);
-    //   }
-    // });
-    socket.on("fileReceived", (data) => {
-      setReceivedFiles((prev) => [...prev, data]);
-    });
+    socket.on("fileReceived", handleFileReceived);
 
-    // fetchFileData(uniqueID);
-  }, []);
+    // Clean up the event listener when the component unmounts
+    return () => {
+      socket.off("fileReceived", handleFileReceived);
+    };
+  }, [receivedFiles]);
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) {

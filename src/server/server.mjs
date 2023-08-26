@@ -20,13 +20,16 @@ io.on("connection", (socket) => {
   console.log("A user connected");
 
   socket.on("requestUniqueId", (data) => {
-    const uniqueID = uuidv4(); // Generate a unique ID for the file
-    fileDataMap[uniqueID] = data.fileData; // Store the unique ID and file data on the server
-    socket.emit("uniqueIdGenerated", { uniqueID, fileData: data.fileData }); // Send back the generated unique ID
+    const uniqueID = uuidv4();
+    fileDataMap[uniqueID] = data.fileData;
+    socket.emit("uniqueIdGenerated", { uniqueID, fileData: data.fileData });
   });
 
   socket.on("requestForFile", (uniqueId) => {
-    socket.emit("fileReceived", fileDataMap[uniqueId]);
+    const fileData = fileDataMap[uniqueId];
+    if (fileData) {
+      socket.emit("fileReceived", fileData);
+    }
   });
 
   socket.on("disconnect", () => {
@@ -34,17 +37,17 @@ io.on("connection", (socket) => {
   });
 });
 
-app.get("/files/:uniqueID", (req, res) => {
-  const { uniqueID } = req.params;
-  const fileData = fileDataMap[uniqueID];
-
-  if (fileData) {
-    res.send({ success: true, fileData });
-  } else {
-    res.send({ success: false, error: "File not found." });
-  }
-});
-
 server.listen(3001, () => {
   console.log("Server is running on port 3001");
 });
+
+// app.get("/files/:uniqueID", (req, res) => {
+//   const { uniqueID } = req.params;
+//   const fileData = fileDataMap[uniqueID];
+
+//   if (fileData) {
+//     res.send({ success: true, fileData });
+//   } else {
+//     res.send({ success: false, error: "File not found." });
+//   }
+// });
