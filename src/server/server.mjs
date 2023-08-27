@@ -1,11 +1,9 @@
 import express from "express";
 import http from "http";
-// import cors from "cors";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
 
 const app = express();
-// cors(app());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -21,22 +19,23 @@ io.on("connection", (socket) => {
 
   socket.on("requestUniqueId", (data) => {
     const uniqueID = uuidv4();
-    const fileName = data.fileName;
-    console.log(fileName);
-    fileDataMap[uniqueID] = {
-      id: uniqueID,
-      fileData: data.fileData,
-      fileName: data.fileName,
-    };
-    socket.emit("uniqueIdGenerated", { uniqueID, fileData: data.fileData });
+
+    if (!fileDataMap[uniqueID]) {
+      fileDataMap[uniqueID] = [];
+    }
+
+    data.files.forEach((file) => {
+      fileDataMap[uniqueID].push({
+        fileData: file.fileData,
+        fileName: file.fileName,
+      });
+    });
+
+    socket.emit("uniqueIdGenerated", { uniqueID });
   });
 
-  socket.on("requestForFile", (uniqueId) => {
-    const fileData = fileDataMap[uniqueId];
-    console.log(fileData);
-    if (fileData) {
-      socket.emit("fileReceived", fileData);
-    }
+  socket.on("requestForFileDataMap", () => {
+    socket.emit("fileDataMap", fileDataMap);
   });
 
   socket.on("disconnect", () => {
@@ -47,14 +46,3 @@ io.on("connection", (socket) => {
 server.listen(3001, () => {
   console.log("Server is running on port 3001");
 });
-
-// app.get("/files/:uniqueID", (req, res) => {
-//   const { uniqueID } = req.params;
-//   const fileData = fileDataMap[uniqueID];
-
-//   if (fileData) {
-//     res.send({ success: true, fileData });
-//   } else {
-//     res.send({ success: false, error: "File not found." });
-//   }
-// });

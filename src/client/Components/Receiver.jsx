@@ -10,33 +10,20 @@ const Receiver = () => {
   const socket = io.connect("ws://localhost:3001");
 
   useEffect(() => {
-    socket.emit("requestForFile", uniqueID);
+    socket.emit("requestForFileDataMap");
 
-    // Clean up the event listener when the component unmounts
+    socket.on("fileDataMap", (data) => {
+      const fileDataArray = data[uniqueID];
+
+      if (fileDataArray) {
+        setReceivedFiles(fileDataArray);
+      }
+    });
+
     return () => {
-      socket.off("fileReceived");
+      socket.off("fileDataMap");
     };
   }, [uniqueID]);
-
-  useEffect(() => {
-    const handleFileReceived = (data) => {
-      console.log(data.id);
-      const isFileAlreadyReceived = receivedFiles.some(
-        (file) => file.id === data.id
-      );
-
-      if (!isFileAlreadyReceived) {
-        setReceivedFiles((prev) => [...prev, data]);
-      }
-    };
-
-    socket.on("fileReceived", handleFileReceived);
-
-    // Clean up the event listener when the component unmounts
-    return () => {
-      socket.off("fileReceived", handleFileReceived);
-    };
-  }, [receivedFiles]);
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) {

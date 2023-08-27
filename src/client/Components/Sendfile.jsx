@@ -20,19 +20,22 @@ const Sendfile = () => {
     const newFiles = Array.from(event.target.files);
     setSelectedFiles([...selectedFiles, ...newFiles]);
 
-    newFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const fileData = event.target.result;
-        const fileName = file.name;
+    const filesToSend = newFiles.map((file) => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const fileData = event.target.result;
+          const fileName = file.name;
+          resolve({ fileData, fileName });
+        };
+        reader.readAsDataURL(file);
+      });
+    });
 
-        socket.emit("requestUniqueId", { fileData, fileName });
-        // Emit "file" event to send the file data
-      };
-      reader.readAsDataURL(file);
+    Promise.all(filesToSend).then((fileDataArray) => {
+      socket.emit("requestUniqueId", { files: fileDataArray });
     });
   };
-
   useEffect(() => {
     socket.on("uniqueIdGenerated", ({ uniqueID }) => {
       setSharedUniqueId(uniqueID);
