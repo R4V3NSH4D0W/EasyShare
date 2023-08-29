@@ -18,8 +18,23 @@ const io = new Server(server, {
 const fileDataMap = {};
 
 io.on("connection", (socket) => {
-  console.log("A user connected");
+  // console.log("A user connected");
+  const removeExpiredIDs = () => {
+    const currentTime = Date.now();
+    for (const uniqueID in fileDataMap) {
+      const entries = fileDataMap[uniqueID];
+      fileDataMap[uniqueID] = entries.filter((entry) => {
+        return entry.expirationDate > currentTime;
+      });
+      if (fileDataMap[uniqueID].length === 0) {
+        delete fileDataMap[uniqueID];
+      }
+    }
+  };
 
+  // Schedule the function to run every minute
+  setInterval(removeExpiredIDs, 60 * 1000); // Run every 1minute
+  // setInterval(removeExpiredIDs, 60 * 60 * 1000); // Run every hour
   socket.on("requestUniqueId", (data) => {
     const uniqueID = uuidv4();
 
@@ -27,15 +42,23 @@ io.on("connection", (socket) => {
       fileDataMap[uniqueID] = [];
     }
 
+    const expirationDate = new Date();
+    expirationDate.setHours(expirationDate.getHours() + 24);
+    // expirationDate.setSeconds(expirationDate.getSeconds() + 20);
     data.files.forEach((file) => {
       fileDataMap[uniqueID].push({
         fileData: file.fileData,
         fileName: file.fileName,
+        expirationDate: expirationDate.getTime(),
       });
     });
 
-    socket.emit("uniqueIdGenerated", { uniqueID });
+    socket.emit("uniqueIdGenerated", {
+      uniqueID,
+      expirationDate: expirationDate.getTime(),
+    });
   });
+
   socket.on("removeFileFromMap", ({ uniqueID, index }) => {
     if (fileDataMap[uniqueID]) {
       fileDataMap[uniqueID] = fileDataMap[uniqueID].filter(
@@ -48,7 +71,7 @@ io.on("connection", (socket) => {
       }
     }
   });
-  socket.on("addFilesAndUpdateMap", ({ uniqueID, files }) => {
+  socket.on("addFilesAndUpdateMap", ({ uniqueID, files, expirationDate }) => {
     if (!fileDataMap[uniqueID]) {
       fileDataMap[uniqueID] = [];
     }
@@ -57,6 +80,7 @@ io.on("connection", (socket) => {
       fileDataMap[uniqueID].push({
         fileData: file.fileData,
         fileName: file.fileName,
+        expirationDate: expirationDate,
       });
     });
 

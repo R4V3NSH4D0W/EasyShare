@@ -12,6 +12,8 @@ const Sendfile = () => {
   const [sharedUniqueId, setSharedUniqueId] = useState("");
   const [sharedUrl, setSharedUrl] = useState("");
   const [isCopied, setIsCopied] = useState(false);
+  const [expirationDate, setExpirationDate] = useState(null);
+
   const socket = io.connect("ws://localhost:3001");
 
   const handleFingerprintClick = () => {
@@ -39,8 +41,10 @@ const Sendfile = () => {
     });
   };
   useEffect(() => {
-    socket.on("uniqueIdGenerated", ({ uniqueID }) => {
+    socket.on("uniqueIdGenerated", ({ uniqueID, expirationDate }) => {
       setSharedUniqueId(uniqueID);
+      setExpirationDate(expirationDate);
+      console.log(expirationDate);
       setSharedUrl(`${window.location.origin}/receiver/${uniqueID}`);
     });
   }, []);
@@ -91,10 +95,10 @@ const Sendfile = () => {
       socket.emit("addFilesAndUpdateMap", {
         uniqueID: sharedUniqueId,
         files: fileDataArray,
+        expirationDate: expirationDate,
       });
     });
   };
-
   const handleCopyClick = () => {
     navigator.clipboard.writeText(sharedUrl);
     setIsCopied(true);
@@ -102,6 +106,19 @@ const Sendfile = () => {
       setIsCopied(false);
     }, 2000); // Display the message for 2 seconds
   };
+  const formatDuration = (seconds) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours}hr ${minutes}min `;
+  };
+
+  const currentTime = Date.now();
+  const remainingTimeInSeconds = Math.max(
+    0,
+    Math.floor((expirationDate - currentTime) / 1000)
+  );
+  const formattedRemainingTime = formatDuration(remainingTimeInSeconds);
   return (
     <>
       {!selectedFiles.length ? (
@@ -188,6 +205,12 @@ const Sendfile = () => {
                   )}
                 </div>
               )}
+              <div>
+                Link Expires in:{" "}
+                <span className=" text-green-600">
+                  {formattedRemainingTime}
+                </span>
+              </div>
             </div>
           </div>
         </div>
