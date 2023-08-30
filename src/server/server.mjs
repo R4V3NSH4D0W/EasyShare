@@ -2,7 +2,9 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { v4 as uuidv4 } from "uuid";
-
+import { MongoClient } from "mongodb";
+import bcrypt from "bcryptjs";
+import { ObjectId } from "mongodb";
 const app = express();
 const server = http.createServer(app);
 
@@ -14,9 +16,144 @@ const io = new Server(server, {
   maxHttpBufferSize: 1e8, // Set the maximum buffer size to 100MB
   pingTimeout: 60000, // Set the ping timeout to 60 seconds
 });
+app.use(express.json());
 
+// ----------------------------Connection to MongoDB database-----------------
+const uri =
+  "mongodb+srv://lenishmagar:TCtg05gMoUz8rLkr@easyshare.pieovce.mongodb.net/?retryWrites=true&w=majority";
+
+const client = new MongoClient(uri);
+
+async function connectToDatabase() {
+  try {
+    await client.connect();
+    console.log("Connected to MongoDB Atlas");
+
+    // Now you're connected to the database and can perform operations
+  } catch (error) {
+    console.error("Error connecting to MongoDB Atlas:", error);
+  }
+}
+
+connectToDatabase();
+// -----------------------------------signup-----------------------------
+app.post("/signup", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10); // 10 is the salt rounds
+
+    // Insert the user's data into the "users" collection
+    const result = await client.db("users").collection("users").insertOne({
+      email: email,
+      password: hashedPassword, // Store the hashed password
+    });
+
+    res
+      .status(201)
+      .json({ message: "User created", insertedId: result.insertedId });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+// ------------------------------login------------------------------------
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await client
+      .db("users")
+      .collection("users")
+      .findOne({ email });
+
+    if (!user) {
+      res.status(401).json({ message: "User not found" });
+      return;
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      res.status(401).json({ message: "Invalid password" });
+      return;
+    }
+
+    const userId = user._id;
+
+    res
+      .status(200)
+      .json({ success: true, message: "Login successful", userId });
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+// ------------------------------uploadingURl---------------------------------------
+
+app.post("/uploadSharedUrl", async (req, res) => {
+  const { userId, sharedUrl, generationTime } = req.body;
+
+  try {
+    const result = await client.db("users").collection("sharedUrl").insertOne({
+      userId: userId,
+      sharedUrl: sharedUrl,
+      generationTime: generationTime,
+    });
+
+    res.status(201).json({
+      message: "Shared URL data uploaded",
+      insertedId: result.insertedId,
+    });
+  } catch (error) {
+    console.error("Error uploading shared URL data:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+// ---------------------------------fetchurl-----------------------------------------
+app.get("/sharedUrls/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const sharedUrls = await client
+      .db("users")
+      .collection("sharedUrl")
+      .find({ userId: userId })
+      .toArray();
+
+    res.json({ sharedUrls });
+  } catch (error) {
+    console.error("Error fetching shared URLs:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+// --------------------------------DeleteFile----------------------------------------
+app.delete("/deleteSharedUrls", async (req, res) => {
+  const { fileUniqueId, ID } = req.body;
+  console.log(fileUniqueId);
+  try {
+    const objectId = new ObjectId(ID);
+    await client
+      .db("users")
+      .collection("sharedUrl")
+      .deleteOne({ _id: objectId });
+
+    if (fileDataMap[fileUniqueId]) {
+      delete fileDataMap[fileUniqueId];
+    }
+
+    res.status(200).json({ message: "Shared URL deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting shared URL:", error);
+    res
+      .status(500)
+      .json({ message: "An error occurred while deleting shared URL" });
+  }
+});
+
+// -----------------------------Socket Programming----------------------------------
 const fileDataMap = {};
-
 io.on("connection", (socket) => {
   // console.log("A user connected");
   const removeExpiredIDs = () => {

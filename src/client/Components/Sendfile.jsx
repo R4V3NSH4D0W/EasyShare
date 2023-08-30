@@ -6,6 +6,7 @@ import { BsPlusCircleFill } from "react-icons/bs";
 import { FaRegFile } from "react-icons/fa";
 import { RxCross2 } from "react-icons/rx";
 import { BiCopy } from "react-icons/bi";
+import axios from "axios";
 const Sendfile = () => {
   const fileInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -13,9 +14,9 @@ const Sendfile = () => {
   const [sharedUrl, setSharedUrl] = useState("");
   const [isCopied, setIsCopied] = useState(false);
   const [expirationDate, setExpirationDate] = useState(null);
-
+  const [generationTime, setGenerationTime] = useState(null);
+  const userId = localStorage.getItem("userId");
   const socket = io.connect("ws://localhost:3001");
-
   const handleFingerprintClick = () => {
     fileInputRef.current.click();
   };
@@ -46,8 +47,28 @@ const Sendfile = () => {
       setExpirationDate(expirationDate);
       console.log(expirationDate);
       setSharedUrl(`${window.location.origin}/receiver/${uniqueID}`);
+      const currentTime = new Date();
+      setGenerationTime(currentTime);
     });
   }, []);
+  useEffect(() => {
+    if (userId && sharedUrl) {
+      uploadSharedUrlToMongoDB(userId, sharedUrl, generationTime);
+    }
+  }, [userId, sharedUrl, generationTime]);
+
+  const uploadSharedUrlToMongoDB = async (userId, url, time) => {
+    try {
+      await axios.post("http://localhost:3001/uploadSharedUrl", {
+        userId: userId,
+        sharedUrl: url,
+        generationTime: time,
+      });
+      console.log("Shared URL uploaded to MongoDB");
+    } catch (error) {
+      console.error("Error uploading shared URL:", error);
+    }
+  };
 
   const formatFileSize = (bytes) => {
     if (bytes < 1024) {

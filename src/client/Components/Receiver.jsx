@@ -117,8 +117,7 @@ const Receiver = () => {
                 Data Package from {getCurrentFormattedDate()}
               </span>
               <span className=" text-[1.2rem] mb-2 mt-1">
-                Expiration Date:{" "}
-                <span className=" text-green-600">{countdown}</span>
+                Expires In: <span className=" text-green-600">{countdown}</span>
               </span>
 
               <button
