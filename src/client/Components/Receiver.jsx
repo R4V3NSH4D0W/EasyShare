@@ -10,6 +10,7 @@ import { AiOutlineClose } from "react-icons/ai";
 import { AiOutlineCloudDownload } from "react-icons/ai";
 import { AiOutlineDownload } from "react-icons/ai";
 import { AiFillEyeInvisible } from "react-icons/ai";
+import axios from "axios";
 const Receiver = () => {
   const { uniqueID } = useParams();
   const [receivedFiles, setReceivedFiles] = useState([]);
@@ -18,6 +19,31 @@ const Receiver = () => {
   const [expirationDate, setExpirationDate] = useState(null);
   const [countdown, setCountdown] = useState("");
   const socket = io.connect("ws://localhost:3001");
+  const userId = localStorage.getItem("userId");
+  useEffect(() => {
+    if (uniqueID && userId && expirationDate) {
+      const url = window.location.href;
+      const parsedExpirationDate = new Date(expirationDate);
+
+      uploadRecivedUrlToMongoDB(userId, url, parsedExpirationDate);
+    }
+  }, [uniqueID, userId, expirationDate]);
+
+  const uploadRecivedUrlToMongoDB = async (userId, url, expiresTime) => {
+    try {
+      const receivedDate = new Date();
+      await axios.post("http://localhost:3001/uploadRecivedUrlToMongoDB", {
+        userID: userId,
+        RecivedUrl: url,
+        ExpiresTime: expiresTime,
+        ReceivedDate: receivedDate,
+      });
+
+      console.log("Received URL uploaded to MongoDB");
+    } catch (error) {
+      console.error("Error uploading received URL:", error);
+    }
+  };
 
   useEffect(() => {
     socket.emit("requestForFileDataMap");
@@ -102,6 +128,29 @@ const Receiver = () => {
       clearInterval(intervalId);
     };
   }, [expirationDate]);
+  // useEffect(() => {
+  //   if (userId) {
+  //     const url = window.location.href;
+  //     const parsedExpirationDate = new Date(expirationDate); // Parse the expirationDate
+
+  //     uploadRecivedUrlToMongoDB(userId, url, parsedExpirationDate);
+  //   }
+  // }, [userId, expirationDate]);
+
+  // const uploadRecivedUrlToMongoDB = async (userId, url, expiresTime) => {
+  //   try {
+  //     console.log(expiresTime);
+  //     await axios.post("http://localhost:3001/uploadRecivedUrlToMongoDB", {
+  //       userID: userId,
+  //       RecivedUrl: url,
+  //       ExpiresTime: expiresTime, // Use the parsed expirationDate
+  //     });
+
+  //     console.log("Received URL uploaded to MongoDB");
+  //   } catch (error) {
+  //     console.error("Error uploading received URL:", error);
+  //   }
+  // };
   return (
     <>
       <Navbar />

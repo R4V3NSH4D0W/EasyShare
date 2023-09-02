@@ -17,7 +17,7 @@ const Navbar = () => {
       <div className="flex flex-col cursor-pointer">
         <Link to="/">
           <span className="text-2xl font-bold text-gray-700 hover:text-gray-800">
-            EasyShare
+            EasySent
           </span>
         </Link>
         <span className="text-sm text-gray-500 hover:text-gray-600">

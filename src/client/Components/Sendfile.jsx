@@ -7,6 +7,7 @@ import { FaRegFile } from "react-icons/fa";
 import { RxCross2 } from "react-icons/rx";
 import { BiCopy } from "react-icons/bi";
 import axios from "axios";
+import QRCode from "qrcode.react";
 const Sendfile = () => {
   const fileInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -231,6 +232,10 @@ const Sendfile = () => {
                 <span className=" text-green-600">
                   {formattedRemainingTime}
                 </span>
+              </div>
+              <div className=" mt-4 flex flex-col">
+                <span className=" font-semibold mb-2">QR Code</span>
+                <QRCode value={sharedUrl} size={128} />
               </div>
             </div>
           </div>

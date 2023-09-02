@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
 import Navbar from "../Components/Navbar";
 import axios from "axios"; // Import Axios for making HTTP requests
+import { BiCopy } from "react-icons/bi";
 
 const UserProfie = () => {
   const [sharedUrls, setSharedUrls] = useState([]);
+  const [recivedUrls, setReceivedUrls] = useState([]);
+  const [mode, setMode] = useState("Sender");
   const userId = localStorage.getItem("userId");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (userId) {
@@ -63,6 +67,19 @@ const UserProfie = () => {
       console.error("Error deleting shared URLs:", error.response);
     }
   };
+  const handleRecivedDeleteClick = async (fileUrl) => {
+    try {
+      await axios.delete("http://localhost:3001/deleteReceivedUrls", {
+        data: {
+          userID: localStorage.getItem("userId"),
+          fileUrl: fileUrl,
+        },
+      });
+      window.location.reload();
+    } catch (error) {
+      console.error("Error deleting received URL:", error);
+    }
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -78,37 +95,196 @@ const UserProfie = () => {
       clearInterval(interval);
     };
   }, []);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     setReceivedUrls((prevReceivedUrls) =>
+  //       prevReceivedUrls.map((receivedUrl) => ({
+  //         ...receivedUrl,
+  //         remainingTime: calculateRemainingTime(receivedUrl.expires),
+  //       }))
+  //     );
+  //   }, 1000);
 
+  //   return () => {
+  //     clearInterval(interval);
+  //   };
+  // }, []);
+  useEffect(() => {
+    if (userId) {
+      fetchReceivedUrls(userId);
+    }
+  }, [userId]);
+
+  const fetchReceivedUrls = async (userId) => {
+    try {
+      const response = await axios.get(
+        `http://localhost:3001/receivedUrls/${userId}`
+      );
+      setReceivedUrls(response.data.receivedUrls);
+      console.log(response.data.receivedUrls); // Make sure that response.data.sharedUrls contains the array of URLs
+    } catch (error) {
+      console.error("Error fetching shared URLs:", error);
+    }
+  };
+  const handleCopyClick = (url) => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000); // Reset the copied status after 2 seconds
+    });
+  };
   return (
     <>
+      {copied && (
+        <span className="bg-gray-400 text-white px-2 py-1 absolute top-0 right-0 ">
+          URL Copied!!
+        </span>
+      )}
       <Navbar />
-      <div className="border">
-        <h2>Shared URLs</h2>
-        <ul>
-          {sharedUrls.map((sharedUrl) => (
-            <li key={sharedUrl._id}>
-              <a
-                href={sharedUrl.sharedUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {sharedUrl.sharedUrl}
-              </a>
-              <span className="ml-6">
-                Remaining Time:{" "}
-                {getRemainingTimeDisplay(sharedUrl.remainingTime)}
-              </span>
-              <button
-                className="ml-4 text-red-600"
-                onClick={() =>
-                  handleDeleteClick(sharedUrl.sharedUrl, sharedUrl._id)
-                }
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
+
+      <div className=" flex justify-center">
+        <div className="border w-[60rem] shadow-md">
+          <div className="flex gap-8 mt-10 mb-10 justify-center">
+            <button
+              onClick={() => setMode("Sender")}
+              className={` text-2xl ${
+                mode === "Sender" ? "font-semibold underline" : ""
+              }`}
+            >
+              Sended
+            </button>
+            <button
+              onClick={() => setMode("Receiver")}
+              className={` text-2xl ${
+                mode === "Receiver" ? "font-semibold underline" : ""
+              }`}
+            >
+              Received
+            </button>
+          </div>
+          <div>
+            {mode === "Sender" && (
+              <>
+                <div className=" m-4">
+                  {" "}
+                  <div className="grid grid-cols-4 gap-4 text-center mb-4">
+                    <div className="font-semibold text-gray-600">
+                      Added Date
+                    </div>
+                    <div className="font-semibold text-gray-600">
+                      Shared Link
+                    </div>
+                    <div className="font-semibold text-gray-600">
+                      Expires In
+                    </div>
+                    <div className="font-semibold text-gray-600"></div>
+                  </div>
+                  <hr className=" mb-6" />
+                  {sharedUrls.map((sharedUrl) => (
+                    <div key={sharedUrl._id} className="mb-4">
+                      <div className="grid grid-cols-4 gap-4 text-center ml-16">
+                        <div className=" flex">
+                          {" "}
+                          {new Date(
+                            sharedUrl.generationTime
+                          ).toLocaleDateString()}
+                        </div>
+                        <div className=" flex">
+                          <input
+                            className="w-[24rem] text-[0.9rem] cursor-pointer"
+                            type="text"
+                            value={sharedUrl.sharedUrl}
+                            readOnly
+                          />
+                          <BiCopy
+                            className="ml-2 cursor-pointer hover:scale-110 text-4xl"
+                            onClick={() => handleCopyClick(sharedUrl.sharedUrl)}
+                          />
+                        </div>
+
+                        <div className="font-semibold text-green-600">
+                          {getRemainingTimeDisplay(sharedUrl.remainingTime)}
+                        </div>
+                        <div className="">
+                          <button
+                            className="ml-4 text-red-600"
+                            onClick={() =>
+                              handleDeleteClick(
+                                sharedUrl.sharedUrl,
+                                sharedUrl._id
+                              )
+                            }
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                      <hr className=" m-2" />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {mode === "Receiver" && (
+              <div className="m-4">
+                <div className="grid grid-cols-3 gap-4 text-center mb-4">
+                  <div className="font-semibold text-gray-600">
+                    Recived Date
+                  </div>
+                  <div className="font-semibold text-gray-600">
+                    Recived Link
+                  </div>
+                  <div className="font-semibold text-gray-600">Expires In</div>
+                  <div className="font-semibold text-gray-600"></div>
+                </div>
+                <hr className="mb-6" />
+                {recivedUrls.map((receivedUrl) => (
+                  <div key={receivedUrl._id} className="mb-4">
+                    <div className="grid grid-cols-3 gap-4 text-center ml-16">
+                      <div className="flex ml-[2.5rem]">
+                        {new Date(
+                          receivedUrl.receivedDate
+                        ).toLocaleDateString()}
+                      </div>
+                      <div className="flex">
+                        <input
+                          className="w-[24rem] text-[0.9rem] cursor-pointer"
+                          type="text"
+                          value={receivedUrl.recivedUrl}
+                          readOnly
+                        />
+                        <BiCopy
+                          className="ml-2 cursor-pointer hover:scale-110 text-4xl"
+                          onClick={() =>
+                            handleCopyClick(receivedUrl.recivedUrl)
+                          }
+                        />
+                      </div>
+                      <div className="font-semibold text-green-600">
+                        {new Date(receivedUrl.expires).toLocaleString()}
+                      </div>
+                      {/* <div className="">
+                        <button
+                          className="ml-4 text-red-600"
+                          onClick={() =>
+                            handleRecivedDeleteClick(
+                              receivedUrl.receivedUrl,
+                              receivedUrl._id
+                            )
+                          }
+                        >
+                          Delete
+                        </button>
+                      </div> */}
+                    </div>
+                    <hr className="m-2" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </>
   );

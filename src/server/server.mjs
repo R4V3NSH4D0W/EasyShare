@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { MongoClient } from "mongodb";
 import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
+import cors from "cors";
 const app = express();
 const server = http.createServer(app);
 
@@ -13,11 +14,11 @@ const io = new Server(server, {
     origin: "*",
     methods: ["GET", "POST"],
   },
-  maxHttpBufferSize: 1e8, // Set the maximum buffer size to 100MB
+  maxHttpBufferSize: 2 * 1024 * 1024 * 1024, // Set the maximum buffer size to 2GB
   pingTimeout: 60000, // Set the ping timeout to 60 seconds
 });
 app.use(express.json());
-
+app.use(cors());
 // ----------------------------Connection to MongoDB database-----------------
 const uri =
   "mongodb+srv://lenishmagar:TCtg05gMoUz8rLkr@easyshare.pieovce.mongodb.net/?retryWrites=true&w=majority";
@@ -111,6 +112,44 @@ app.post("/uploadSharedUrl", async (req, res) => {
     res.status(500).json({ message: "An error occurred" });
   }
 });
+app.post("/uploadRecivedUrlToMongoDB", async (req, res) => {
+  const { userID, RecivedUrl, ExpiresTime, ReceivedDate } = req.body;
+  try {
+    // Check if the same URL already exists for the user
+    const existingRecord = await client
+      .db("users")
+      .collection("receivedUrl")
+      .findOne({ userId: userID, recivedUrl: RecivedUrl });
+
+    if (existingRecord) {
+      // URL already exists for the user, return an error response
+      res.status(409).json({ message: "URL already exists for this user" });
+    } else {
+      // URL does not exist for the user, insert the data
+
+      const result = await client
+        .db("users")
+        .collection("receivedUrl")
+        .insertOne({
+          userId: userID,
+          recivedUrl: RecivedUrl,
+          expires: ExpiresTime,
+          receivedDate: ReceivedDate,
+        });
+
+      console.log(ExpiresTime);
+      console.log(ReceivedDate);
+      res.status(201).json({
+        message: "Received URL data uploaded",
+        insertedId: result.insertedId,
+      });
+    }
+  } catch (error) {
+    console.error("Error uploading Received URL data:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+
 // ---------------------------------fetchurl-----------------------------------------
 app.get("/sharedUrls/:userId", async (req, res) => {
   const userId = req.params.userId;
@@ -125,6 +164,22 @@ app.get("/sharedUrls/:userId", async (req, res) => {
     res.json({ sharedUrls });
   } catch (error) {
     console.error("Error fetching shared URLs:", error);
+    res.status(500).json({ message: "An error occurred" });
+  }
+});
+app.get("/receivedUrls/:userId", async (req, res) => {
+  const userId = req.params.userId;
+
+  try {
+    const receivedUrls = await client
+      .db("users")
+      .collection("receivedUrl")
+      .find({ userId: userId })
+      .toArray();
+
+    res.json({ receivedUrls });
+  } catch (error) {
+    console.error("Error fetching received URLs:", error);
     res.status(500).json({ message: "An error occurred" });
   }
 });
@@ -149,6 +204,27 @@ app.delete("/deleteSharedUrls", async (req, res) => {
     res
       .status(500)
       .json({ message: "An error occurred while deleting shared URL" });
+  }
+});
+app.delete("/deleteReceivedUrls", async (req, res) => {
+  const { userID, fileUrl } = req.body;
+
+  try {
+    const result = await client
+      .db("users")
+      .collection("receivedUrl")
+      .deleteOne({ userId: userID, recivedUrl: fileUrl });
+
+    if (result.deletedCount === 1) {
+      res.status(200).json({ message: "Received URL deleted successfully" });
+    } else {
+      res.status(404).json({ message: "Received URL not found" });
+    }
+  } catch (error) {
+    console.error("Error deleting received URL:", error);
+    res
+      .status(500)
+      .json({ message: "An error occurred while deleting received URL" });
   }
 });
 
@@ -229,9 +305,9 @@ io.on("connection", (socket) => {
     socket.emit("fileDataMap", fileDataMap);
   });
 
-  socket.on("disconnect", () => {
-    console.log("A user disconnected");
-  });
+  // socket.on("disconnect", () => {
+  //   console.log("A user disconnected");
+  // });
 });
 
 server.listen(3001, () => {
